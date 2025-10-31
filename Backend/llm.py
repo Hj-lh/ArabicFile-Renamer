@@ -1,4 +1,5 @@
-from ollama_ocr import OCRProcessor
+# from ollama_ocr import OCRProcessor
+from .OllamaOCR import OCRProcessor1 as OCRProcessor
 import ollama
 from .Config import get_settings
 from fastapi import UploadFile
@@ -13,16 +14,17 @@ class LLMService:
         self.ocr_processor = OCRProcessor(model_name=self.model_name)
         
 
-    def Renamer(self, file: dict) -> str:
-        file_text = "".join([self.ExtractText(content) for content in file["content"]])
+    async def Renamer(self, file: UploadFile) -> str:
+        file_text = await self.ExtractText(file)
         new_name = self._generate_file_name(file_text)
         return new_name
 
-    def ExtractText(self, file_content) -> str:
+    async def ExtractText(self, file: UploadFile) -> str:
         try:
-            decode_image = base64.b64decode(file_content)
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_image:
-                temp_image.write(decode_image)
+            file_content = await file.read()
+            file_ext = os.path.splitext(file.filename)[1].lower()
+            with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as temp_image:
+                temp_image.write(file_content)
                 temp_image_path = temp_image.name
             print("starting ocr")
             text = self.ocr_processor.process_image(temp_image_path)
