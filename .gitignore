@@ -3,3 +3,6 @@
 /*.py[cod]
 /Backend/__pycache__/
 /Backend/.env
+notebook/
+/notebook/
+./notebook/
