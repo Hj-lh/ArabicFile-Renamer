@@ -41,5 +41,4 @@ async def upload_file(file: List[UploadFile] = File(...)):
     #         "signal": result["signal"]
     #     })
 
-    return JSONResponse(content={"results": results})
 app.include_router(router)

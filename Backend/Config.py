@@ -7,7 +7,10 @@ class Settings(BaseSettings):
     APP_VERSION: str
 
     MODEL_NAME: str
-    OLLAMA_BASE_URL: str
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
+    ALIBABA_CLOUD_BASE_URL: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    ALIBABA_CLOUD_API_KEY: str = ""
+
     FILE_ALLOWED_TYPES: list[str]
     MAX_FILE_SIZE: int
     MAX_FILE_SIZE_IN_MEMORY: int
