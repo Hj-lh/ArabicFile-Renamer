@@ -1,0 +1,23 @@
+services:
+  backend:
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile
+    container_name: file_renamer_backend
+    ports:
+      - "8000:8000"
+    
+    volumes:
+      - ../:/app/Backend
+    
+    environment:
+      - PYTHONPATH=/app
+      - TESSDATA_PREFIX=/usr/share/tesseract-ocr/4.00/tessdata
+    
+    networks:
+      - backend
+    
+    restart: always
+
+networks:
+  backend:
