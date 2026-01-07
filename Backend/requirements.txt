@@ -13,3 +13,4 @@ python-multipart>=0.0.6
 uvicorn>=0.24.0
 pytesseract>=0.3.10
 langdetect>=1.0.9
+tiktoken>=0.5.1

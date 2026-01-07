@@ -24,12 +24,15 @@ class DataController:
             'ar': 'ara',
             }
 
-    def validate_file(self, file: UploadFile) -> bool:
-        
+    def validate_file(self, file: UploadFile) -> Tuple[bool, str]:
+    
         if file.content_type not in self.allowed_types:
             return False, f"File type {file.content_type} is not allowed."
-        if file.size > self.max_file_size:
+    
+
+        if file.size and file.size > self.max_file_size:
             return False, f"File size exceeds the maximum limit of {self.max_file_size} bytes."
+    
         return True, ""
     
     
@@ -129,7 +132,6 @@ class DataController:
     ) -> dict:
         """Process scanned document using OCR with language detection."""
         
-        # First pass: quick OCR on first page to detect language
         sample_text = await self.ocr_service.extract_text(
             image_bytes_list[0], 
             lang="eng+ara"
@@ -137,7 +139,6 @@ class DataController:
         
         detected_lang = self.detect_language(sample_text)
         
-        # Full OCR with detected language
         full_text_parts = []
         for idx, img_bytes in enumerate(image_bytes_list):
             try:
