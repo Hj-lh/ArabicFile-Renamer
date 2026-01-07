@@ -6,18 +6,56 @@ services:
     container_name: file_renamer_backend
     ports:
       - "8000:8000"
-    
     volumes:
       - ../:/app/Backend
-    
     environment:
       - PYTHONPATH=/app
       - TESSDATA_PREFIX=/usr/share/tesseract-ocr/4.00/tessdata
-    
+    depends_on:
+      - langfuse
     networks:
       - backend
-    
+    restart: always
+
+  langfuse:
+    image: langfuse/langfuse:2  # Back to v2
+    container_name: langfuse
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@langfuse_postgres:5432/langfuse
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=my-super-secret-key-change-in-production
+      - SALT=my-salt-value-change-in-production
+      - ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000
+      
+    depends_on:
+      langfuse_postgres:
+        condition: service_healthy
+    networks:
+      - backend
+    restart: always
+
+  langfuse_postgres:
+    image: postgres:15
+    container_name: langfuse_postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=langfuse
+    volumes:
+      - langfuse_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
     restart: always
 
 networks:
   backend:
+
+volumes:
+  langfuse_data:
