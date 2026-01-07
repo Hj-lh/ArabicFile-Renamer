@@ -2,7 +2,7 @@ from fastapi import APIRouter, UploadFile, File, FastAPI
 from fastapi.responses import JSONResponse, Response
 from typing import List
 from .controllers.DataController import DataController
-from .llm import LLMService
+from .stores.llm.LLMService import LLMService
 import base64
 import asyncio
 import logging
@@ -29,9 +29,19 @@ async def upload_file(files: List[UploadFile] = File(...)):
                 continue
 
             document_data = await data_controller.process_document(file)
+
+            new_name = await llm_service.Renamer(
+                text=document_data["text"],
+                language=document_data["language"],
+                original_filename=file.filename
+            )
+            
+            extension = file.filename.rsplit('.', 1)[-1] if '.' in file.filename else 'pdf'
+
             results.append({
                 "original_filename": file.filename,
-                "text": document_data["text"][:500],  # First 500 chars for preview
+                "new_filename": f"{new_name}.{extension}",
+                "text_preview": document_data["text"][:300],
                 "full_text_length": len(document_data["text"]),
                 "is_scanned": document_data["is_scanned"],
                 "pages": document_data["pages"],

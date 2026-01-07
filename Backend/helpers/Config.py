@@ -6,10 +6,12 @@ class Settings(BaseSettings):
     APP_NAME: str
     APP_VERSION: str
 
-    MODEL_NAME: str
-    OLLAMA_BASE_URL: str = "http://localhost:11434"
-    ALIBABA_CLOUD_BASE_URL: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-    ALIBABA_CLOUD_API_KEY: str = ""
+
+    LLM_PROVIDER: str  # "openai", "ollama", "alibaba"
+    LLM_API_KEY: str
+    LLM_BASE_URL: str
+    LLM_MODEL: str
+    LLM_TEMPERATURE: float = 0.3
 
     FILE_ALLOWED_TYPES: list[str]
     MAX_FILE_SIZE: int
