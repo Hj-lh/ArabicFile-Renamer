@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     MAX_FILE_SIZE: int
     MAX_FILE_SIZE_IN_MEMORY: int
 
+    # Rate Limiting
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_PER_DAY: str = "3/day" 
+
     model_config = SettingsConfigDict(
         env_file=str(BASE_DIR / ".env"),
         env_file_encoding="utf-8",

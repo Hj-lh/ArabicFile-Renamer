@@ -15,3 +15,4 @@ pytesseract>=0.3.10
 langdetect>=1.0.9
 tiktoken>=0.5.1
 langfuse==2.36.2
+slowapi>=0.1.9
