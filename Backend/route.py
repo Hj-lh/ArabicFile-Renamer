@@ -7,101 +7,44 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from .controllers.DataController import DataController
 from .stores.llm.LLMService import LLMService
+from .stores.tracking import FileUploadLimiter
 from .helpers.Config import get_settings
 import logging
 import asyncio
 import json
 import time
-from collections import defaultdict
-from datetime import datetime, timedelta
-import threading
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
 
-class FileUploadLimiter:
-    """Track files uploaded per user per day."""
-    
-    def __init__(self, max_files_per_day: int = 3):
-        self.max_files = max_files_per_day
-        self.user_files = defaultdict(list)
-        self.lock = threading.Lock()
-    
-    def _clean_old_entries(self, user_id: str):
-        cutoff = datetime.now() - timedelta(hours=24)
-        self.user_files[user_id] = [
-            (ts, count) for ts, count in self.user_files[user_id]
-            if ts > cutoff
-        ]
-    
-    def check_and_increment(self, user_id: str, file_count: int) -> tuple[bool, dict]:
-        if not user_id:
-            user_id = "anonymous"
-        
-        with self.lock:
-            self._clean_old_entries(user_id)
-            total_uploaded = sum(count for _, count in self.user_files[user_id])
-            remaining = max(0, self.max_files - total_uploaded)
-            
-            if total_uploaded + file_count > self.max_files:
-                oldest = min(ts for ts, _ in self.user_files[user_id]) if self.user_files[user_id] else datetime.now()
-                reset_time = oldest + timedelta(hours=24)
-                
-                return False, {
-                    "allowed": False,
-                    "files_uploaded_today": total_uploaded,
-                    "max_files_per_day": self.max_files,
-                    "remaining": remaining,
-                    "requested": file_count,
-                    "reset_at": reset_time.isoformat(),
-                    "message": f"Cannot upload {file_count} files. Only {remaining} remaining today."
-                }
-            
-            self.user_files[user_id].append((datetime.now(), file_count))
-            new_remaining = remaining - file_count
-            
-            return True, {
-                "allowed": True,
-                "files_uploaded_today": total_uploaded + file_count,
-                "max_files_per_day": self.max_files,
-                "remaining": new_remaining,
-                "message": f"{new_remaining} file(s) remaining today"
-            }
-    
-    def get_stats(self, user_id: str) -> dict:
-        if not user_id:
-            user_id = "anonymous"
-        
-        with self.lock:
-            self._clean_old_entries(user_id)
-            total_uploaded = sum(count for _, count in self.user_files[user_id])
-            
-            return {
-                "user_id": user_id,
-                "files_uploaded_today": total_uploaded,
-                "max_files_per_day": self.max_files,
-                "remaining": max(0, self.max_files - total_uploaded)
-            }
-
-
 def get_user_id_or_ip(request: Request) -> str:
+    """Get user_id from query params or fallback to IP."""
     user_id = request.query_params.get("user_id")
     return user_id if user_id else get_remote_address(request)
 
 
-limiter = Limiter(key_func=get_user_id_or_ip, enabled=settings.RATE_LIMIT_ENABLED)
-file_limiter = FileUploadLimiter(max_files_per_day=3)
+# Initialize rate limiters
+limiter = Limiter(
+    key_func=get_user_id_or_ip,
+    enabled=settings.RATE_LIMIT_ENABLED
+)
 
+file_limiter = FileUploadLimiter(
+    max_files_per_day=settings.MAX_FILES_PER_DAY,
+    enabled=settings.RATE_LIMIT_ENABLED
+)
+
+# Initialize FastAPI
 app = FastAPI(
     title="File Renamer API",
     description="AI-powered document renaming service",
     version="0.0.1"
 )
 
-# CORS for Next.js frontend
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -116,17 +59,25 @@ app.add_middleware(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+# Initialize services
 router = APIRouter()
 data_controller = DataController()
 llm_service = LLMService()
 
+logger.info(f"API started - Rate limiting: {'enabled' if settings.RATE_LIMIT_ENABLED else 'disabled'}")
 
-async def process_single_file(file: UploadFile, user_id: str = None, request: Request = None) -> dict:
+
+async def process_single_file(
+    file: UploadFile,
+    user_id: str = None,
+    request: Request = None
+) -> dict:
     """Process a single file with Langfuse tracking."""
     start_time = time.time()
     tracking_id = user_id if user_id else get_remote_address(request)
     
     try:
+        # Validate file
         is_valid, message = data_controller.validate_file(file)
         if not is_valid:
             return {
@@ -136,8 +87,10 @@ async def process_single_file(file: UploadFile, user_id: str = None, request: Re
                 "error_type": "validation"
             }
         
+        # Process document
         document_data = await data_controller.process_document(file)
         
+        # Prepare metadata
         file_metadata = {
             "file_size": file.size or 0,
             "is_scanned": document_data["is_scanned"],
@@ -147,6 +100,7 @@ async def process_single_file(file: UploadFile, user_id: str = None, request: Re
             "has_user_id": bool(user_id)
         }
         
+        # Generate filename with LLM
         new_name, usage_data = await llm_service.Renamer(
             text=document_data["text"],
             language=document_data["language"],
@@ -192,8 +146,14 @@ async def upload_file_stream(
 ):
     """Upload files and get AI-generated filenames (streaming response)."""
     
-    files_to_process = files[:3] if files else []
-    allowed, limit_info = file_limiter.check_and_increment(user_id, len(files_to_process))
+    # IMPORTANT: Use IP for anonymous users, not "anonymous" string
+    tracking_id = user_id if user_id else get_remote_address(request)
+    
+    # Limit to max files per day
+    files_to_process = files[:settings.MAX_FILES_PER_DAY] if files else []
+    
+    # Check file upload limit - pass IP if no user_id
+    allowed, limit_info = file_limiter.check_and_increment(tracking_id, len(files_to_process))
     
     if not allowed:
         async def error_generator():
@@ -212,13 +172,15 @@ async def upload_file_stream(
         
         yield f"data: {json.dumps({'type': 'started', 'total': len(files_to_process), 'limit_info': limit_info}, ensure_ascii=False)}\n\n"
         
-        tasks = [process_single_file(file, user_id, request) for file in files_to_process]
+        # Process files - also use tracking_id
+        tasks = [process_single_file(file, tracking_id, request) for file in files_to_process]
         
         for coro in asyncio.as_completed(tasks):
             result = await coro
             yield f"data: {json.dumps({'type': 'result', 'data': result}, ensure_ascii=False)}\n\n"
         
-        stats = file_limiter.get_stats(user_id)
+        # Send completed event with updated stats
+        stats = file_limiter.get_stats(tracking_id)
         yield f"data: {json.dumps({'type': 'completed', 'limit_info': stats}, ensure_ascii=False)}\n\n"
     
     return StreamingResponse(
@@ -233,15 +195,16 @@ async def upload_file_stream(
 
 
 @router.get("/limit")
-async def get_limit_status(user_id: str = None):
+async def get_limit_status(request: Request, user_id: str = None):
     """Get current upload limit status for a user."""
-    stats = file_limiter.get_stats(user_id or "anonymous")
+    tracking_id = user_id if user_id else get_remote_address(request)
+    stats = file_limiter.get_stats(tracking_id)
     return stats
 
 
 @router.get("/health")
 async def health_check():
-    """Health check for monitoring/DevOps (not for frontend)."""
+    """Health check for monitoring/DevOps."""
     return {"status": "ok"}
 
 

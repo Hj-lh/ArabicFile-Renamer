@@ -34,7 +34,7 @@ class Settings(BaseSettings):
 
     # Rate Limiting
     RATE_LIMIT_ENABLED: bool = True
-    RATE_LIMIT_PER_DAY: str = "3/day" 
+    MAX_FILES_PER_DAY: int = 3
 
     model_config = SettingsConfigDict(
         env_file=str(BASE_DIR / ".env"),
