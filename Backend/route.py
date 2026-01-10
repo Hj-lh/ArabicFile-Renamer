@@ -1,9 +1,9 @@
 from fastapi import APIRouter, UploadFile, File, FastAPI, Request, HTTPException
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List
 from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from .controllers.DataController import DataController
 from .stores.llm.LLMService import LLMService
@@ -19,6 +19,24 @@ logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
+# Remove the import above, add this custom function instead
+
+def get_remote_address(request: Request) -> str:
+    """Get real client IP, handling Docker/proxy scenarios"""
+    # Check X-Forwarded-For header first (set by reverse proxies)
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        # X-Forwarded-For can be: "client, proxy1, proxy2"
+        # Take the first (leftmost) IP which is the real client
+        return forwarded_for.split(",")[0].strip()
+    
+    # Check X-Real-IP header (set by some proxies like nginx)
+    real_ip = request.headers.get("X-Real-IP")
+    if real_ip:
+        return real_ip.strip()
+    
+    # Fallback to direct connection IP
+    return request.client.host if request.client else "unknown"
 
 def get_user_id_or_ip(request: Request) -> str:
     """Get user_id from query params or fallback to IP."""
@@ -44,13 +62,25 @@ app = FastAPI(
     version="0.0.1"
 )
 
-# CORS middleware
+
+from starlette.middleware.base import BaseHTTPMiddleware
+
+class ProxyHeaderMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        # Docker bridge IP
+        if request.client and request.client.host.startswith("172."):
+            # Check if X-Forwarded-For exists
+            if forwarded := request.headers.get("X-Forwarded-For"):
+                # Manually set the client host
+                request.scope["client"] = (forwarded.split(",")[0].strip(), request.client.port)
+        
+        response = await call_next(request)
+        return response
+
+# CORS middleware - environment-based
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001",
-    ],
+    allow_origins=settings.CORS_ORIGINS.split(",") if settings.CORS_ORIGINS else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

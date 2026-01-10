@@ -36,6 +36,8 @@ class Settings(BaseSettings):
     RATE_LIMIT_ENABLED: bool = True
     MAX_FILES_PER_DAY: int = 3
 
+    # CORS Settings
+    CORS_ORIGINS: str = ""
     model_config = SettingsConfigDict(
         env_file=str(BASE_DIR / ".env"),
         env_file_encoding="utf-8",

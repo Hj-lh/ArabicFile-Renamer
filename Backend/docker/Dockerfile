@@ -25,4 +25,4 @@ ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr/4.00/tessdata
 
 EXPOSE 8000
 
-CMD ["uvicorn", "Backend.route:app", "--host", "0.0.0.0", "--port", "8000","--reload"]
+CMD ["uvicorn", "Backend.route:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4", "--proxy-headers", "--forwarded-allow-ips", "*"]
