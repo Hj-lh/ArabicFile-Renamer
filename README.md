@@ -200,6 +200,8 @@ Project/
 
 This project includes Langfuse for LLM observability:
 
+![Langfuse Dashboard](./docs/image.png)
+
 - **Trace Analysis** – View complete request traces from file upload to LLM response
 - **Latency Monitoring** – Track response times and identify bottlenecks
 - **Token Usage** – Monitor LLM token consumption and costs
