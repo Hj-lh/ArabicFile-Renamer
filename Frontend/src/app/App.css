@@ -1,0 +1,653 @@
+.app-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    flex: 1;
+}
+
+.header {
+    margin-bottom: 3rem;
+    text-align: center;
+}
+
+.header h1 {
+    font-size: 3rem;
+    font-weight: 600;
+    background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    /* Fallback */
+    margin-bottom: 0.5rem;
+    text-shadow: 0 0 20px var(--accent-glow);
+}
+
+.header p {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+}
+
+/* Main Stage */
+.stage {
+    display: grid;
+    grid-template-columns: 1fr 100px 1fr;
+    gap: 2rem;
+    width: 100%;
+    align-items: end;
+    /* Baseline Sync */
+    position: relative;
+    padding-bottom: 2rem;
+}
+
+@media (max-width: 768px) {
+    .stage {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+        align-items: stretch;
+    }
+
+    .transition-area {
+        flex-direction: row;
+        padding: 1rem 0;
+    }
+
+    .arrow-icon {
+        transform: rotate(90deg);
+        /* Point down */
+    }
+
+    .arrow-btn:hover .arrow-icon {
+        /* Pulse down instead of scale */
+        transform: rotate(90deg) scale(1.1);
+    }
+}
+
+.zone {
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: var(--glass-border);
+    border-radius: 20px;
+    padding: 1.5rem;
+    /* Slightly reduced padding for compact start */
+    /* Start Small: Match approx height of one file card (approx 80-100px) */
+    min-height: 120px;
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    box-shadow: var(--glass-shadow);
+    /* Smooth Resize: Note - animating height:auto is tricky. 
+     We rely on the CHILD (FileCard) animating its size to push the parent. 
+     But we can transition min-height or padding if those change. */
+    transition: min-height 0.5s ease, padding 0.5s ease, box-shadow 0.3s ease;
+}
+
+.input-zone .file-list {
+    /* Standard Column: Items start at Top */
+    display: flex;
+    /* Ensure flex context */
+    flex-direction: column;
+    flex: 1;
+}
+
+.zone:hover {
+    box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5);
+}
+
+.zone-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding-bottom: 0.5rem;
+}
+
+.transition-area {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    gap: 0.5rem;
+    /* Space between arrow and text */
+}
+
+.arrow-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: var(--text-muted);
+    transition: color 0.3s, transform 0.2s;
+}
+
+.arrow-btn:hover {
+    color: var(--accent-primary);
+    transform: scale(1.1);
+}
+
+.arrow-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.rename-text {
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    opacity: 0.7;
+}
+
+.arrow-icon {
+    font-size: 2rem;
+    /* Remove infinite pulse, apply it only when processing or hovered if desired */
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 0.5;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.1);
+    }
+
+    100% {
+        opacity: 0.5;
+        transform: scale(1);
+    }
+}
+
+/* File List Styles */
+.file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    flex: 1;
+}
+
+/* File Input Wrapper */
+.file-input-wrapper {
+    border: 2px dashed rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    flex: 1;
+    /* Default flex grow */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: var(--text-muted);
+
+    /* Smooth Collapse Transition */
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    opacity: 1;
+    max-height: 200px;
+    /* Arbitrary limit larger than likely content */
+    transform: scale(1);
+}
+
+.file-input-wrapper.collapsed {
+    flex: 0 0 0 !important;
+    /* Force zero flex size */
+    opacity: 0;
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin: 0;
+    /* Remove internal margin */
+    margin-bottom: -2rem;
+    /* Aggressive negative margin (Gap + Buffer) */
+    margin-top: -1rem;
+    /* Pull up just in case */
+    border-width: 0;
+    /* Remove borders */
+    pointer-events: none;
+    transform: scale(0.95);
+}
+
+.file-input-wrapper:hover,
+.file-input-wrapper.drag-active {
+    border-color: var(--accent-primary);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-main);
+}
+
+.file-input-wrapper.drag-active {
+    background: rgba(255, 255, 255, 0.1);
+    /* Slightly brighter on drag */
+    transform: scale(1.02);
+    border-style: solid;
+    /* Solid border when dragging */
+}
+
+.error-banner {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #fca5a5;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    animation: fadeIn 0.3s ease;
+}
+
+.close-error {
+    background: none;
+    border: none;
+    color: #fca5a5;
+    font-size: 1.25rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 0 0 0.5rem;
+    opacity: 0.7;
+}
+
+.close-error:hover {
+    opacity: 1;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Drop Zone Content */
+.drop-zone-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.drop-icon {
+    width: 24px;
+    height: 24px;
+    margin-bottom: 0.5rem;
+    color: var(--accent-primary);
+    filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.5));
+}
+
+.drop-text {
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: var(--text-main);
+}
+
+.drop-subtext {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+}
+
+.file-type-badges {
+    display: flex;
+    gap: 0.5rem;
+    margin: 0.5rem 0;
+}
+
+.file-type-badge {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 0.3rem 0.7rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.size-limit {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
+.hidden-input {
+    display: none;
+}
+
+/* Input Zone: Top Aligned (Default) */
+.input-zone .file-list {
+    justify-content: flex-start;
+}
+
+/* Output Zone: Bottom Aligned (User Request: Push Up) */
+.output-zone .file-list {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    /* Items start at bottom */
+    flex: 1;
+}
+
+.result-info {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.original-name {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    opacity: 0.6;
+    margin-top: 0.2rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Input Zone: Top Aligned (Default) */
+.input-zone .file-list {
+    justify-content: flex-start;
+}
+
+/* Output Zone: Bottom Aligned (User Request: Push Up) */
+.output-zone .file-list {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    /* Items start at bottom */
+    flex: 1;
+}
+
+/* File Card Styles - Smoother Duration */
+/* File Card Styles - Smoother Duration */
+.file-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 1rem;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    /* Increased duration for smoother "flight" */
+    transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(4px);
+
+    /* Entry Animation */
+    animation: enterStack 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+    /* Delay will be set via inline style var(--delay) */
+    animation-delay: var(--delay, 0ms);
+}
+
+.file-card:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-2px);
+}
+
+@keyframes enterStack {
+    0% {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+        max-height: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        margin-bottom: -1rem;
+        /* Counteract gap */
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        max-height: 200px;
+        /* Arbitrary large limit */
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+        margin-bottom: 0;
+    }
+}
+
+/* Exiting Animation - Collapses space smoothly */
+/* Exiting Animation - Flies Right towards button */
+.file-card.exiting {
+    /* Warp Speed: 0.3s */
+    animation: collapseStack 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.loading-text {
+    font-size: 0.75rem;
+    color: var(--accent-primary);
+    margin-top: 0.2rem;
+    font-family: monospace;
+    /* Tech feel */
+    opacity: 0.8;
+    animation: pulseText 1.5s infinite;
+}
+
+@keyframes pulseText {
+
+    0%,
+    100% {
+        opacity: 0.8;
+    }
+
+    50% {
+        opacity: 0.4;
+    }
+}
+
+@keyframes collapseStack {
+    0% {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+        max-height: 200px;
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+        margin-bottom: 0;
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateX(150px) scale(1);
+        /* Fly Right */
+        max-height: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        margin-top: -1rem;
+        /* Counteract flex-gap visually */
+        margin-bottom: -1rem;
+        border-width: 0;
+    }
+}
+
+/* Animation States */
+.file-card.visible {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.file-card.hidden-left {
+    opacity: 0;
+    transform: translateX(200px);
+    /* Fly further right */
+    pointer-events: none;
+}
+
+.result-card {
+    background: #000000;
+    border-color: #333333;
+    box-shadow: 0 4px 12px rgba(255, 255, 255, 0.05);
+}
+
+.result-card .filename.success {
+    background: linear-gradient(to right, #ffffff, #a0a0a0);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    font-weight: 600;
+}
+
+.bounce-in {
+    /* Match the easing of the exit to feel like one continuous motion */
+    /* Warp Speed: 0.4s */
+    animation: bounceInResult 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+@keyframes bounceInResult {
+    0% {
+        opacity: 0;
+        /* Start further left to "catch" the flying input */
+        transform: translateX(-150px) scale(1);
+        max-height: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        margin-bottom: -1rem;
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+        max-height: 200px;
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+        margin-bottom: 0;
+    }
+}
+
+/* Download Button (Warp Speed Addition) */
+.download-btn {
+    position: absolute;
+    bottom: 1rem;
+    right: 1rem;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: var(--text-main);
+    padding: 0.8rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 10;
+}
+
+.download-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.1);
+    border-color: var(--accent-primary);
+}
+
+.badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: var(--accent-secondary);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: bold;
+    height: 20px;
+    width: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--bg-card);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+/* Footer Styles */
+.footer {
+    width: 100%;
+    margin-top: 10rem;
+    padding-top: 2rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    /* Brighter line */
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    /* Reduced gap */
+}
+
+.tech-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    width: 100%;
+}
+
+.tech-card {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 1rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(5px);
+}
+
+.tech-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--accent-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.tech-title {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+    font-weight: 600;
+}
+
+.tech-name {
+    font-size: 1rem;
+    color: var(--text-main);
+    font-weight: 600;
+}
+
+.copyright {
+    text-align: center;
+    padding: 0.5rem 0;
+    /* Reduced padding */
+}
+
+.copyright a {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.9rem;
+    position: relative;
+    transition: color 0.3s ease;
+}
+
+.copyright a:hover {
+    color: var(--accent-primary);
+    text-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+}
